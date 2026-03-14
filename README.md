@@ -1,50 +1,73 @@
 # HTML Parsing Tool
 
-## Description
-This project provides a robust, browser-based tool designed to empower developers and content creators with comprehensive HTML document manipulation capabilities. Leveraging modern web technologies, it offers a suite of features for in-depth analysis and transformation of HTML content directly within the browser.
+A comprehensive, browser-based tool designed for developers and content creators to interactively parse, visualize, extract, clean, and convert HTML content. This application provides a safe sandbox environment for previewing parsed HTML, leveraging technologies like Monaco Editor for code editing, DOMParser for efficient parsing, a sandboxed iframe for secure previews, DOMPurify for sanitization, and Prettier for code formatting.
 
-Key functionalities include:
-- **HTML Parsing**: Efficiently parse raw HTML strings into an interactive Document Object Model (DOM) structure.
-- **Visualization**: Visually inspect the parsed HTML structure, making it easier to understand document hierarchy and relationships.
-- **Extraction**: Extract specific data or elements from HTML using various methods (e.g., CSS selectors).
-- **Cleaning**: Sanitize and clean HTML content, removing unwanted tags, attributes, or potentially malicious scripts, ensuring data integrity and security (e.g., using `dompurify`).
-- **Conversion**: Transform HTML into different formats or structures, facilitating data interoperability.
+## Features
 
-Built with Next.js and TypeScript, this tool aims to provide a fast, secure, and user-friendly experience for all your HTML parsing needs. It utilizes technologies such as `monaco-editor` for rich code editing, and `web-workers` for background processing to maintain a smooth UI.
+*   **Interactive HTML Editor:** Write or paste HTML code with syntax highlighting and auto-completion powered by Monaco Editor.
+*   **Real-time Parsing & Visualization:** Instantly parse HTML and visualize its DOM structure.
+*   **Safe HTML Preview:** Preview rendered HTML within a sandboxed iframe, ensuring isolation from the main application.
+*   **Extraction Capabilities:** Extract specific elements, attributes, or text content based on user-defined criteria.
+*   **HTML Cleaning & Sanitization:** Sanitize HTML using DOMPurify to remove potentially malicious scripts or unwanted tags.
+*   **Code Formatting:** Format HTML output using Prettier for readability.
+*   **Conversion Tools:** Future-proof for potential conversions (e.g., HTML to Markdown).
 
-## Setup Instructions
+## Technologies Used
 
-To get this project up and running on your local machine, follow these steps:
+*   **Next.js 15 (App Router):** For a robust and performant React framework.
+*   **TypeScript:** For type safety and improved developer experience.
+*   **React:** For building the user interface.
+*   **Monaco Editor:** For an advanced code editing experience.
+*   **DOMParser:** For efficient in-browser HTML parsing.
+*   **`iframe` (Sandboxed):** For secure and isolated previews.
+*   **DOMPurify:** For sanitizing HTML content.
+*   **Prettier:** For consistent code formatting.
+*   **Tailwind CSS:** For highly customizable and utility-first styling.
+*   **Zustand:** For state management.
+*   **Lucide React:** For a beautiful icon set.
 
-### 1. Clone the repository
+## Getting Started
 
-git clone [YOUR_REPOSITORY_URL_HERE]
-cd html-parsing-tool
-*(Replace `[YOUR_REPOSITORY_URL_HERE]` with the actual URL of your Git repository)*
+Follow these instructions to set up and run the project locally.
 
-### 2. Install Dependencies
+### Prerequisites
 
-Using pnpm (recommended):
-```bash
-pnpm install
-```
+Make sure you have the following installed on your machine:
 
-Alternatively, using npm:
-```bash
-npm install
-```
+*   Node.js (LTS version recommended)
+*   npm, yarn, or pnpm (pnpm is recommended)
 
-Or using yarn:
-```bash
-yarn install
-```
+### Installation
 
-### 3. Run the Development Server
+1.  **Clone the repository:**
 
-Start the Next.js development server:
+    ```bash
+    git clone https://github.com/your-username/html-parsing-tool.git
+    cd html-parsing-tool
+    
+
+2.  **Install dependencies:**
+
+    Using pnpm (recommended):
+    ```bash
+    pnpm install
+    ```
+
+    Using npm:
+    ```bash
+    npm install
+    ```
+
+    Using yarn:
+    ```bash
+    yarn install
+    ```
+
+### Running the Development Server
+
+To start the development server:
 
 Using pnpm:
-```bash
 pnpm dev
 ```
 
@@ -53,17 +76,47 @@ Using npm:
 npm run dev
 ```
 
-Or using yarn:
+Using yarn:
 ```bash
 yarn dev
 ```
 
-### 4. Open in Browser
+Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
-Once the development server is running, open your web browser and navigate to:
+The application will hot-reload on changes, and any build errors will be shown in the console.
 
+### Building for Production
+
+To create a production-ready build:
+
+Using pnpm:
+```bash
+pnpm build
 ```
-http://localhost:3000
+
+Using npm:
+```bash
+npm run build
 ```
 
-You should now see the HTML Parsing Tool application.
+Using yarn:
+```bash
+yarn build
+```
+
+Then, you can start the production server:
+
+Using pnpm:
+```bash
+pnpm start
+```
+
+Using npm:
+```bash
+npm run start
+```
+
+Using yarn:
+```bash
+yarn start
+```

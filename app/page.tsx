@@ -1,42 +1,64 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useHtmlParserStore } from '@/lib/store';
-import { HtmlInputPasteUpload } from '@/components/HtmlInputPasteUpload';
-import { DomTreeVisualization } from '@/components/DomTreeVisualization';
-import { SafeHtmlPreview } from '@/components/SafeHtmlPreview';
+import { HtmlSourceEditor } from '@/components/HtmlSourceEditor';
+import { ClientSideHtmlParsing } from '@/components/ClientSideHtmlParsing';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Code, Eye } from 'lucide-react'; // Using icons relevant to code and preview
 
+/**
+ * Renders the main HTML Parsing & Visualization tool page.
+ * This page orchestrates the HTML source editor and the client-side parsing/preview components.
+ */
 export default function Page() {
-  const { htmlInput, parseHtmlInput } = useHtmlParserStore();
-
-  // Trigger HTML parsing whenever the raw HTML input changes
-  useEffect(() => {
-    // Only parse if htmlInput is not null/undefined to avoid unnecessary calls.
-    // The parseHtmlInput action itself should handle clearing state if the input is empty.
-    parseHtmlInput(htmlInput);
-  }, [htmlInput, parseHtmlInput]); // Dependency array includes htmlInput and parseHtmlInput
-
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground">
-      {/* Header for the application title */}
-      <header className="py-4 px-4 md:px-8 bg-card border-b border-border shadow-sm flex-shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">HTML Parser & Visualizer</h1>
-      </header>
+    <main className="flex min-h-screen flex-col items-center bg-gray-50 p-4 dark:bg-gray-950">
+      <div className="container max-w-7xl flex-grow space-y-6">
+        {/* Header Card */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+              HTML Parser & Visualizer
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 dark:text-gray-400">
+              Input HTML, parse it into a DOM tree, detect errors, and preview safely in the browser.
+            </p>
+          </CardContent>
+        </Card>
 
-      {/* Main content area, takes remaining vertical space and allows scrolling */}
-      <main className="flex-1 flex flex-col p-4 md:p-8 space-y-6 overflow-auto">
-        {/* Section for HTML Input (Paste & Upload) */}
-        <section className="flex-shrink-0 h-[45vh] min-h-[300px]">
-          <HtmlInputPasteUpload />
-        </section>
+        <Separator label="Input & Output" />
 
-        {/* Section for DOM Tree Visualization and Safe HTML Preview */}
-        {/* This section takes the remaining vertical space and arranges components in a responsive grid */}
-        <section className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[400px]">
-          <DomTreeVisualization />
-          <SafeHtmlPreview />
-        </section>
-      </main>
-    </div>
+        {/* Main Content Area: Split layout for Editor and Output */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Left Pane: HTML Source Editor */}
+          <Card className="flex flex-col min-h-[600px] md:h-[calc(100vh-250px)]">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Code className="h-5 w-5 text-gray-500" /> HTML Source Editor
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-grow p-0">
+              {/* The HtmlSourceEditor component manages its own Monaco editor instance */}
+              <HtmlSourceEditor />
+            </CardContent>
+          </Card>
+
+          {/* Right Pane: Client-Side HTML Parsing & Preview */}
+          <Card className="flex flex-col min-h-[600px] md:h-[calc(100vh-250px)]">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Eye className="h-5 w-5 text-gray-500" /> Parsed HTML & Live Preview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-grow p-0">
+              {/* The ClientSideHtmlParsing component displays the parsing results and the iframe preview */}
+              <ClientSideHtmlParsing />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </main>
   );
 }

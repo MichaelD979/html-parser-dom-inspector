@@ -1,115 +1,231 @@
+'use client';
+
 import { create } from 'zustand';
 import {
   DOMTreeNode,
-  ExtractionRule,
-  ExtractedElement,
-  CleaningRule,
+  HTMLJSONNode,
+  ParsingOptions,
 } from '@/lib/types';
 
+// Define placeholder types for external configurations
+type MonacoEditorOptions = Record<string, any>;
+type MonacoMarker = Record<string, any>;
+type PrettierOptions = Record<string, any>;
+type DOMPurifyConfig = Record<string, any>;
+
 /**
- * Defines the state and actions for the HTML parsing tool.
+ * State and actions for the HTML parsing tool.
  */
 interface HtmlParserState {
-  // 1. HTML Input (Paste & Upload)
-  htmlInput: string;
-  setHtmlInput: (html: string) => void;
+  // 1. HTML Source Editor
+  htmlSource: string;
+  editorMarkers: MonacoMarker[]; // For syntax errors, etc.
+  isFormatting: boolean; // Flag for format-on-demand
+  editorOptions: MonacoEditorOptions; // Monaco editor configuration
 
-  // 2. DOM Tree Visualization
-  domTree: DOMTreeNode[] | null;
-  expandedNodes: Set<string>; // Stores IDs of currently expanded nodes in the tree
-  highlightedNodeId: string | null; // ID of the node currently highlighted in the DOM tree view
-  parsingError: string | null; // Stores any error message from HTML parsing
-  setDomTree: (tree: DOMTreeNode[] | null) => void;
-  toggleNodeExpansion: (nodeId: string) => void;
-  expandAllNodes: (allNodeIds: string[]) => void; // Expands all nodes given their IDs
-  collapseAllNodes: () => void;
-  setHighlightedNodeId: (nodeId: string | null) => void;
-  setParsingError: (error: string | null) => void;
+  // 2. File Upload & Paste HTML Input (handled by htmlSource)
 
-  // 3. Safe HTML Preview
-  safeHtmlPreview: string; // Sanitized HTML content for secure preview
-  setSafeHtmlPreview: (html: string) => void;
+  // 3. Client-Side HTML Parsing
+  parsedDocument: Document | null;
+  domTree: DOMTreeNode[]; // Structured DOM for tree viewer
+  parsingOptions: ParsingOptions;
+  isParsing: boolean;
 
-  // 4. HTML Element Extraction
-  extractionRules: ExtractionRule[]; // User-defined rules for data extraction
-  extractedData: ExtractedElement[]; // Results of the extraction
-  extractionLoading: boolean; // Indicates if extraction is currently in progress
-  addExtractionRule: (rule: Omit<ExtractionRule, 'id'>) => void;
-  updateExtractionRule: (id: string, rule: Partial<ExtractionRule>) => void;
-  removeExtractionRule: (id: string) => void;
-  setExtractedData: (data: ExtractedElement[]) => void;
-  setExtractionLoading: (loading: boolean) => void;
+  // 4. Malformed Markup Detection
+  parsingErrors: string[];
+  hasParsingError: boolean; // Derived from parsingErrors.length
 
-  // 5. HTML Cleaning & Sanitization
-  cleaningRules: CleaningRule[]; // User-defined rules for cleaning
-  sanitizedHtml: string; // HTML content after applying cleaning rules
-  sanitizeOptions: Record<string, any>; // Configuration options for HTML sanitization (e.g., DOMPurify)
-  addCleaningRule: (rule: Omit<CleaningRule, 'id'>) => void;
-  updateCleaningRule: (id: string, rule: Partial<CleaningRule>) => void;
-  removeCleaningRule: (id: string) => void;
-  setSanitizedHtml: (html: string) => void;
-  setSanitizeOption: (key: string, value: any) => void; // Updates a specific sanitization option
+  // 5. Visual DOM Tree Viewer
+  expandedNodes: Set<string>; // IDs of expanded nodes
+  highlightedNodeId: string | null; // Node currently hovered/highlighted
+  selectedNodeId: string | null; // Node currently selected
 
-  // 6. HTML to JSON Conversion
-  jsonOutput: string | null; // JSON string representation of the parsed DOM tree
-  setJsonOutput: (json: string | null) => void;
+  // 6. Safe HTML Preview
+  previewHtml: string; // Sanitized HTML content for the iframe
+  isSanitizing: boolean; // Flag for sanitization process
 
-  // 7. Monaco Source Editor
-  editorTheme: 'vs-dark' | 'vs-light';
-  editorFontSize: number;
-  editorLineNumbers: 'on' | 'off';
-  editorWordWrap: 'on' | 'off';
-  setEditorTheme: (theme: 'vs-dark' | 'vs-light') => void;
-  setEditorFontSize: (size: number) => void;
-  setEditorLineNumbers: (setting: 'on' | 'off') => void;
-  setEditorWordWrap: (setting: 'on' | 'off') => void;
+  // 7. Element Extractor
+  selectorInput: string; // CSS selector or XPath
+  extractionResults: any[]; // Results of element extraction
+  extractionType: 'text' | 'html' | 'attributes' | 'element'; // Type of extraction output
 
-  // 8. HTML Beautify & Minify
-  formattedHtml: string; // The HTML content after beautification or minification
-  isBeautifying: boolean; // Indicates if beautification is in progress
-  isMinifying: boolean; // Indicates if minification is in progress
-  setFormattedHtml: (html: string) => void;
-  setIsBeautifying: (status: boolean) => void;
-  setIsMinifying: (status: boolean) => void;
+  // 8. HTML Beautifier
+  formattedHtml: string;
+  isBeautifying: boolean;
+  beautifierOptions: PrettierOptions;
 
-  // 9. Malformed Markup Detection
-  isMalformedHtml: boolean; // True if the HTML input is malformed
-  malformedErrorDetails: string | null; // Details about the malformed HTML
-  setIsMalformedHtml: (isMalformed: boolean) => void;
-  setMalformedErrorDetails: (details: string | null) => void;
+  // 9. HTML Minifier
+  minifiedHtml: string;
+  isMinifying: boolean;
 
-  // 10. DOM-Preview Hover Highlight
-  hoveredNodeId: string | null; // ID of the node currently hovered (e.g., in tree or preview)
-  setHoveredNodeId: (nodeId: string | null) => void;
+  // 10. HTML to JSON Conversion
+  htmlJson: HTMLJSONNode[] | null;
+  isConvertingToJson: boolean;
 
-  // 11. Large HTML Performance Optimization
-  domTreeRenderLimit: number; // Max number of nodes to render in the DOM tree view for performance
-  isParsingInWorker: boolean; // Flag indicating if HTML parsing is done in a Web Worker
-  isParsingLoading: boolean; // Flag indicating if parsing is currently active
-  setDomTreeRenderLimit: (limit: number) => void;
-  setIsParsingInWorker: (inWorker: boolean) => void;
-  setIsParsingLoading: (loading: boolean) => void;
+  // 11. HTML Sanitization (already part of preview, but might need dedicated output)
+  sanitizedHtmlOutput: string; // Explicit sanitized output
+  sanitizationConfig: DOMPurifyConfig; // Configuration for DOMPurify
 
-  // 12. Accessibility Support
-  enableKeyboardNavigation: boolean; // Toggles keyboard navigation for interactive elements
-  setEnableKeyboardNavigation: (enabled: boolean) => void;
+  // 12. Large HTML Performance Optimizations
+  maxDomTreeNodes: number; // Max nodes to render in tree
+  domTreeDepthLimit: number; // Max depth to expand automatically
+  isVirtualizedTree: boolean; // Enable/disable virtualization
+  isWebWorkerParsing: boolean; // Enable/disable Web Worker for parsing
 
-  // General UI State
-  activeTab: 'editor' | 'dom-tree' | 'preview' | 'extract' | 'clean' | 'json' | 'settings'; // Currently active main tab
-  setActiveTab: (tab: HtmlParserState['activeTab']) => void;
+  // 13. Interactive Selector Matching
+  currentSelector: string; // Current selector for highlighting
+  matchingNodeIds: Set<string>; // IDs of nodes matching the current selector
+  selectorMatchCount: number;
+
+  // 14. Accessibility Features (mostly UI implementation, not direct store state)
 }
 
-export const useHtmlParserStore = create<HtmlParserState>((set, get) => ({
-  // 1. HTML Input
-  htmlInput: '',
-  setHtmlInput: (html) => set({ htmlInput: html }),
+interface HtmlParserActions {
+  // HTML Source Editor
+  setHtmlSource: (source: string) => void;
+  setEditorMarkers: (markers: MonacoMarker[]) => void;
+  setIsFormatting: (formatting: boolean) => void;
+  setEditorOptions: (options: Partial<MonacoEditorOptions>) => void;
 
-  // 2. DOM Tree Visualization
-  domTree: null,
+  // Client-Side HTML Parsing
+  setParsedDocument: (doc: Document | null) => void;
+  setDomTree: (tree: DOMTreeNode[]) => void;
+  setParsingOptions: (options: Partial<ParsingOptions>) => void;
+  setIsParsing: (parsing: boolean) => void;
+
+  // Malformed Markup Detection
+  setParsingErrors: (errors: string[]) => void;
+
+  // Visual DOM Tree Viewer
+  toggleNodeExpansion: (nodeId: string) => void;
+  expandAllNodes: (allNodeIds: string[]) => void;
+  collapseAllNodes: () => void;
+  setHighlightedNodeId: (nodeId: string | null) => void;
+  setSelectedNodeId: (nodeId: string | null) => void;
+
+  // Safe HTML Preview
+  setPreviewHtml: (html: string) => void;
+  setIsSanitizing: (sanitizing: boolean) => void;
+
+  // Element Extractor
+  setSelectorInput: (selector: string) => void;
+  setExtractionResults: (results: any[]) => void;
+  setExtractionType: (type: 'text' | 'html' | 'attributes' | 'element') => void;
+
+  // HTML Beautifier
+  setFormattedHtml: (html: string) => void;
+  setIsBeautifying: (beautifying: boolean) => void;
+  setBeautifierOptions: (options: Partial<PrettierOptions>) => void;
+
+  // HTML Minifier
+  setMinifiedHtml: (html: string) => void;
+  setIsMinifying: (minifying: boolean) => void;
+
+  // HTML to JSON Conversion
+  setHtmlJson: (json: HTMLJSONNode[] | null) => void;
+  setIsConvertingToJson: (converting: boolean) => void;
+
+  // HTML Sanitization
+  setSanitizedHtmlOutput: (html: string) => void;
+  setSanitizationConfig: (config: Partial<DOMPurifyConfig>) => void;
+
+  // Large HTML Performance Optimizations
+  setMaxDomTreeNodes: (count: number) => void;
+  setDomTreeDepthLimit: (limit: number) => void;
+  setIsVirtualizedTree: (enabled: boolean) => void;
+  setIsWebWorkerParsing: (enabled: boolean) => void;
+
+  // Interactive Selector Matching
+  setCurrentSelector: (selector: string) => void;
+  setMatchingNodeIds: (ids: Set<string>) => void;
+  setSelectorMatchCount: (count: number) => void;
+}
+
+export const useHtmlParserStore = create<HtmlParserState & HtmlParserActions>((set, get) => ({
+  // Initial State
+  htmlSource: '<!DOCTYPE html>\n<html>\n  <head>\n    <title>Hello World</title>\n  </head>\n  <body>\n    <h1>Welcome!</h1>\n    <p id="first-para" data-info="example">This is a <a href="#">sample</a> HTML document.</p>\n    <!-- A comment -->\n    <script>alert("XSS!");</script>\n    <style>h1 { color: blue; }</style>\n    <div>\n      <span>Nested Span</span>\n    </div>\n  </body>\n</html>',
+  editorMarkers: [],
+  isFormatting: false,
+  editorOptions: {
+    minimap: { enabled: false },
+    lineNumbers: 'on',
+    autoClosingTags: 'always',
+    autoIndent: 'full',
+    formatOnType: true,
+    formatOnPaste: true,
+    tabSize: 2,
+    wordWrap: 'on',
+  },
+
+  parsedDocument: null,
+  domTree: [],
+  parsingOptions: {
+    removeComments: false,
+    removeEmptyTextNodes: true,
+    removeScripts: false,
+    removeStyles: false,
+    removeAttributes: [],
+  },
+  isParsing: false,
+
+  parsingErrors: [],
+  hasParsingError: false, // Will be computed in the selector if needed
+
   expandedNodes: new Set<string>(),
   highlightedNodeId: null,
-  parsingError: null,
+  selectedNodeId: null,
+
+  previewHtml: '',
+  isSanitizing: false,
+
+  selectorInput: '',
+  extractionResults: [],
+  extractionType: 'element',
+
+  formattedHtml: '',
+  isBeautifying: false,
+  beautifierOptions: {
+    parser: 'html',
+    htmlWhitespaceSensitivity: 'css',
+    tabWidth: 2,
+    useTabs: false,
+  },
+
+  minifiedHtml: '',
+  isMinifying: false,
+
+  htmlJson: null,
+  isConvertingToJson: false,
+
+  sanitizedHtmlOutput: '',
+  sanitizationConfig: {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['script'],
+    FORBID_ATTR: ['onerror', 'onload', 'onmouseover'],
+  },
+
+  maxDomTreeNodes: 5000,
+  domTreeDepthLimit: 10,
+  isVirtualizedTree: true,
+  isWebWorkerParsing: false,
+
+  currentSelector: '',
+  matchingNodeIds: new Set<string>(),
+  selectorMatchCount: 0,
+
+  // Actions
+  setHtmlSource: (source) => set({ htmlSource: source }),
+  setEditorMarkers: (markers) => set({ editorMarkers: markers }),
+  setIsFormatting: (formatting) => set({ isFormatting: formatting }),
+  setEditorOptions: (options) => set((state) => ({ editorOptions: { ...state.editorOptions, ...options } })),
+
+  setParsedDocument: (doc) => set({ parsedDocument: doc }),
   setDomTree: (tree) => set({ domTree: tree }),
+  setParsingOptions: (options) => set((state) => ({ parsingOptions: { ...state.parsingOptions, ...options } })),
+  setIsParsing: (parsing) => set({ isParsing: parsing }),
+
+  setParsingErrors: (errors) => set({ parsingErrors: errors, hasParsingError: errors.length > 0 }),
+
   toggleNodeExpansion: (nodeId) =>
     set((state) => {
       const newExpandedNodes = new Set(state.expandedNodes);
@@ -120,115 +236,37 @@ export const useHtmlParserStore = create<HtmlParserState>((set, get) => ({
       }
       return { expandedNodes: newExpandedNodes };
     }),
-  expandAllNodes: (allNodeIds: string[]) =>
-    set({ expandedNodes: new Set(allNodeIds) }),
+  expandAllNodes: (allNodeIds) => set({ expandedNodes: new Set(allNodeIds) }),
   collapseAllNodes: () => set({ expandedNodes: new Set<string>() }),
   setHighlightedNodeId: (nodeId) => set({ highlightedNodeId: nodeId }),
-  setParsingError: (error) => set({ parsingError: error }),
+  setSelectedNodeId: (nodeId) => set({ selectedNodeId: nodeId }),
 
-  // 3. Safe HTML Preview
-  safeHtmlPreview: '',
-  setSafeHtmlPreview: (html) => set({ safeHtmlPreview: html }),
+  setPreviewHtml: (html) => set({ previewHtml: html }),
+  setIsSanitizing: (sanitizing) => set({ isSanitizing: sanitizing }),
 
-  // 4. HTML Element Extraction
-  extractionRules: [],
-  extractedData: [],
-  extractionLoading: false,
-  addExtractionRule: (rule) =>
-    set((state) => ({
-      extractionRules: [...state.extractionRules, { ...rule, id: crypto.randomUUID() }],
-    })),
-  updateExtractionRule: (id, rule) =>
-    set((state) => ({
-      extractionRules: state.extractionRules.map((r) =>
-        r.id === id ? { ...r, ...rule } : r
-      ),
-    })),
-  removeExtractionRule: (id) =>
-    set((state) => ({
-      extractionRules: state.extractionRules.filter((r) => r.id !== id),
-    })),
-  setExtractedData: (data) => set({ extractedData: data }),
-  setExtractionLoading: (loading) => set({ extractionLoading: loading }),
+  setSelectorInput: (selector) => set({ selectorInput: selector }),
+  setExtractionResults: (results) => set({ extractionResults: results }),
+  setExtractionType: (type) => set({ extractionType: type }),
 
-  // 5. HTML Cleaning & Sanitization
-  cleaningRules: [],
-  sanitizedHtml: '',
-  // Default sensible sanitization options, often aligned with DOMPurify defaults
-  sanitizeOptions: {
-    USE_PROFILES: { html: true }, // Enables basic HTML sanitization profile
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'link', 'style'],
-    FORBID_ATTR: ['onerror', 'onload', 'onmouseover', 'onclick', 'onblur', 'onfocus', 'style', 'srcdoc', 'sandbox'],
-    ALLOW_DATA_ATTR: true, // Allow data- attributes by default
-  },
-  addCleaningRule: (rule) =>
-    set((state) => ({
-      cleaningRules: [...state.cleaningRules, { ...rule, id: crypto.randomUUID() }],
-    })),
-  updateCleaningRule: (id, rule) =>
-    set((state) => ({
-      cleaningRules: state.cleaningRules.map((r) =>
-        r.id === id ? { ...r, ...rule } : r
-      ),
-    })),
-  removeCleaningRule: (id) =>
-    set((state) => ({
-      cleaningRules: state.cleaningRules.filter((r) => r.id !== id),
-    })),
-  setSanitizedHtml: (html) => set({ sanitizedHtml: html }),
-  setSanitizeOption: (key, value) =>
-    set((state) => ({
-      sanitizeOptions: {
-        ...state.sanitizeOptions,
-        [key]: value,
-      },
-    })),
-
-  // 6. HTML to JSON Conversion
-  jsonOutput: null,
-  setJsonOutput: (json) => set({ jsonOutput: json }),
-
-  // 7. Monaco Source Editor
-  editorTheme: 'vs-dark',
-  editorFontSize: 14,
-  editorLineNumbers: 'on',
-  editorWordWrap: 'off',
-  setEditorTheme: (theme) => set({ editorTheme: theme }),
-  setEditorFontSize: (size) => set({ editorFontSize: size }),
-  setEditorLineNumbers: (setting) => set({ editorLineNumbers: setting }),
-  setEditorWordWrap: (setting) => set({ editorWordWrap: setting }),
-
-  // 8. HTML Beautify & Minify
-  formattedHtml: '',
-  isBeautifying: false,
-  isMinifying: false,
   setFormattedHtml: (html) => set({ formattedHtml: html }),
-  setIsBeautifying: (status) => set({ isBeautifying: status }),
-  setIsMinifying: (status) => set({ isMinifying: status }),
+  setIsBeautifying: (beautifying) => set({ isBeautifying: beautifying }),
+  setBeautifierOptions: (options) => set((state) => ({ beautifierOptions: { ...state.beautifierOptions, ...options } })),
 
-  // 9. Malformed Markup Detection
-  isMalformedHtml: false,
-  malformedErrorDetails: null,
-  setIsMalformedHtml: (isMalformed) => set({ isMalformedHtml: isMalformed }),
-  setMalformedErrorDetails: (details) => set({ malformedErrorDetails: details }),
+  setMinifiedHtml: (html) => set({ minifiedHtml: html }),
+  setIsMinifying: (minifying) => set({ isMinifying: minifying }),
 
-  // 10. DOM-Preview Hover Highlight
-  hoveredNodeId: null,
-  setHoveredNodeId: (nodeId) => set({ hoveredNodeId: nodeId }),
+  setHtmlJson: (json) => set({ htmlJson: json }),
+  setIsConvertingToJson: (converting) => set({ isConvertingToJson: converting }),
 
-  // 11. Large HTML Performance Optimization
-  domTreeRenderLimit: 500, // Default limit for nodes rendered in the tree view
-  isParsingInWorker: false, // Default: parsing not in worker initially
-  isParsingLoading: false,
-  setDomTreeRenderLimit: (limit) => set({ domTreeRenderLimit: limit }),
-  setIsParsingInWorker: (inWorker) => set({ isParsingInWorker: inWorker }),
-  setIsParsingLoading: (loading) => set({ isParsingLoading: loading }),
+  setSanitizedHtmlOutput: (html) => set({ sanitizedHtmlOutput: html }),
+  setSanitizationConfig: (config) => set((state) => ({ sanitizationConfig: { ...state.sanitizationConfig, ...config } })),
 
-  // 12. Accessibility Support
-  enableKeyboardNavigation: true, // Keyboard navigation enabled by default
-  setEnableKeyboardNavigation: (enabled) => set({ enableKeyboardNavigation: enabled }),
+  setMaxDomTreeNodes: (count) => set({ maxDomTreeNodes: count }),
+  setDomTreeDepthLimit: (limit) => set({ domTreeDepthLimit: limit }),
+  setIsVirtualizedTree: (enabled) => set({ isVirtualizedTree: enabled }),
+  setIsWebWorkerParsing: (enabled) => set({ isWebWorkerParsing: enabled }),
 
-  // General UI State
-  activeTab: 'editor', // Default active tab
-  setActiveTab: (tab) => set({ activeTab: tab }),
+  setCurrentSelector: (selector) => set({ currentSelector: selector }),
+  setMatchingNodeIds: (ids) => set({ matchingNodeIds: ids }),
+  setSelectorMatchCount: (count) => set({ selectorMatchCount: count }),
 }));

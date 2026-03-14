@@ -1,123 +1,142 @@
-export type DOMNodeType = 'element' | 'text' | 'comment' | 'doctype' | 'cdata';
+// lib/types.ts
 
 /**
- * Represents a single node in the parsed HTML DOM tree.
+ * Represents a node in the DOM tree structure, suitable for UI display.
  */
 export interface DOMTreeNode {
-  id: string; // Unique ID for this node (e.g., 'node-0-1-2')
-  type: DOMNodeType;
-  tagName?: string; // Present only for 'element' nodes (e.g., 'div', 'p')
-  attributes?: Record<string, string>; // Present only for 'element' nodes
-  nodeValue?: string; // Raw value for 'text', 'comment', 'cdata', 'doctype' nodes
-  textContent?: string; // Aggregated text content for 'element' nodes, or nodeValue for others
-  children?: DOMTreeNode[]; // Present only for 'element' nodes that can have children
-  parentNodeId?: string; // Optional reference to the parent node's ID
-  outerHtml?: string; // The full HTML snippet of this node, including its children (optional, for debugging/display)
-  depth: number; // The depth of the node in the DOM tree (root is 0)
-  index: number; // The index of this node among its siblings
+  /** A unique identifier for the node, useful for React keys and selection. */
+  id: string;
+  /** The type of the DOM node (e.g., 'element', 'text', 'comment', 'document', 'doctype'). */
+  type: 'element' | 'text' | 'comment' | 'document' | 'doctype';
+  /** The tag name for element nodes (e.g., 'div', 'p'), or a descriptive name for other types (e.g., '#text', '#comment', '#document', '#doctype'). */
+  name: string;
+  /** The text content for text and comment nodes, or the public/system ID for doctype nodes. */
+  value?: string;
+  /** A record of attribute names and their values for element nodes. */
+  attributes?: Record<string, string>;
+  /** An array of child nodes, if the node has children. */
+  children?: DOMTreeNode[];
+  /** Optional flag to control collapsed state in a tree view UI. */
+  collapsed?: boolean;
+  /** A CSS selector path to this node from the document root (e.g., "html > body > div:nth-child(2)"). */
+  path?: string;
+  /** The character start and end offsets of this node within the original HTML string. */
+  originalHtmlOffset?: { start: number; end: number };
 }
 
 /**
- * Defines the type of attribute or content to extract from an element.
- * 'text': Extracts the aggregated text content of the element.
- * 'html': Extracts the inner HTML of the element.
- * string: Extracts the value of a specific attribute (e.g., 'href', 'src').
+ * Represents a node in a simplified JSON structure of HTML, suitable for data extraction or API responses.
  */
-export type ExtractionAttribute = 'text' | 'html' | string;
-
-/**
- * Represents a rule defined by the user for extracting data from the HTML.
- */
-export interface ExtractionRule {
-  id: string; // Unique identifier for the rule
-  selector: string; // CSS selector to target elements
-  attribute: ExtractionAttribute; // What to extract from the matched elements
-  label: string; // A user-friendly label for the extracted data
-}
-
-/**
- * Represents a single piece of data extracted based on an ExtractionRule.
- */
-export interface ExtractedElement {
-  id: string; // Unique identifier for this extracted item
-  ruleId: string; // Reference to the ExtractionRule that generated this item
-  selector: string; // The selector used for extraction
-  attribute: ExtractionAttribute; // The attribute/content type extracted
-  value: string | null; // The extracted string value (null if not found)
-  nodeId: string; // The ID of the DOMTreeNode from which the data was extracted
-  contextPath?: string; // Optional, a simplified path like "div > p > a" for context
-}
-
-/**
- * Defines the type of cleaning action to perform on HTML elements.
- */
-export type CleaningAction =
-  | 'remove-tag'        // Removes the tag and its children
-  | 'unwrap-tag'        // Removes the tag but keeps its children
-  | 'remove-attribute'  // Removes a specific attribute from the tag
-  | 'replace-attribute'; // Replaces the value of a specific attribute
-
-/**
- * Represents a rule defined by the user for cleaning or transforming the HTML.
- */
-export interface CleaningRule {
-  id: string; // Unique identifier for the cleaning rule
-  action: CleaningAction;
-  selector: string; // CSS selector to target elements for cleaning
-  attributeName?: string; // Required for 'remove-attribute', 'replace-attribute'
-  newValue?: string; // Required for 'replace-attribute'
-  // Future: Could add 'applyToChildren', 'matchValue', etc.
-}
-
-/**
- * Represents a node in the structured JSON output when converting HTML to JSON.
- */
-export type HTMLToJsonNodeChildren = (HTMLToJsonNode | string)[];
-
-export interface HTMLToJsonNode {
+export interface HTMLJSONNode {
+  /** The type of the HTML node. */
   type: 'element' | 'text' | 'comment' | 'doctype';
-  tag?: string; // For 'element' nodes (e.g., 'div', 'p')
-  attributes?: Record<string, string>; // For 'element' nodes
-  content?: string; // For 'text', 'comment', 'doctype' nodes
-  children?: HTMLToJsonNodeChildren; // For 'element' nodes with child elements or text
+  /** The tag name for element nodes (e.g., 'div', 'p'). Omitted for non-element nodes. */
+  tagName?: string;
+  /** A record of attribute names and their values for element nodes. Omitted for non-element nodes. */
+  attributes?: Record<string, string>;
+  /** The text content for text, comment, or doctype nodes. */
+  content?: string;
+  /** An array of child HTMLJSONNode objects for element nodes. */
+  children?: HTMLJSONNode[];
 }
 
 /**
- * Represents the overall state of the HTML parsing tool.
+ * Defines parsing options that can be applied to the HTML input.
  */
-export interface HtmlParserToolState {
-  // Input
+export interface ParsingOptions {
+  /** Whether to remove HTML comments from the parsed output. */
+  removeComments: boolean;
+  /** Whether to remove text nodes that only contain whitespace. */
+  removeEmptyTextNodes: boolean;
+  /** Whether to remove `<script>` tags and their content. */
+  removeScripts: boolean;
+  /** Whether to remove `<style>` tags and their content. */
+  removeStyles: boolean;
+  /** A list of attribute names to remove from all elements (e.g., ['id', 'class']). */
+  removeAttributes: string[];
+  /** A list of tag names whose content should be unwraped (i.e., the tag itself is removed, but its children are kept). */
+  unwrapTags: string[];
+}
+
+/**
+ * Defines options for how the HTML preview should behave, especially regarding security.
+ */
+export interface PreviewOptions {
+  /** Whether to sanitize the HTML using DOMPurify before displaying in the iframe. */
+  sanitize: boolean;
+  /** Whether to sandbox scripts within the iframe, preventing them from running. */
+  sandboxScripts: boolean;
+  /** Whether to sandbox forms within the iframe, preventing submission. */
+  sandboxForms: boolean;
+  /** Whether to sandbox popups (e.g., `window.open`) within the iframe. */
+  sandboxPopups: boolean;
+  /** Whether to allow same-origin content in the iframe. */
+  sandboxAllowSameOrigin: boolean;
+}
+
+/**
+ * Defines options for converting the parsed HTML into different formats.
+ */
+export interface ConversionOptions {
+  /** The target format for conversion (e.g., 'html', 'markdown', 'text', 'json'). */
+  targetFormat: 'html' | 'markdown' | 'text' | 'json';
+  /** Options specific to Markdown conversion. */
+  markdownOptions: {
+    /** Whether to preserve HTML comments during Markdown conversion. */
+    keepHtmlComments: boolean;
+    /** Whether to convert raw HTML blocks/tags to Markdown equivalent if possible. */
+    convertHtmlToMarkdown: boolean;
+  };
+  /** Options specific to plain text conversion. */
+  textOptions: {
+    /** Whether to remove all HTML tags, leaving only text content. */
+    removeHtmlTags: boolean;
+    /** Whether to preserve whitespace and line breaks as much as possible. */
+    preserveWhitespace: boolean;
+  };
+  /** Options specific to JSON conversion (referring to the HTMLJSONNode structure). */
+  jsonOptions: {
+    /** Whether to include element attributes in the JSON output. */
+    includeAttributes: boolean;
+    /** Whether to flatten adjacent text nodes into a single string. */
+    flattenTextNodes: boolean;
+  };
+}
+
+/**
+ * Represents the entire application state, typically managed by a state management library like Zustand.
+ */
+export interface AppState {
+  /** The raw HTML string input by the user. */
   htmlInput: string;
-  sanitizedInput: string; // The input after initial sanitization (e.g., DOMPurify)
+  /** The root of the parsed DOM tree structure, or null if not yet parsed or on error. */
+  parsedDomTree: DOMTreeNode | null;
+  /** The root of the parsed HTML JSON structure, or null if not yet parsed or on error. */
+  parsedHtmlJson: HTMLJSONNode | null;
+  /** The currently active tab in the UI. */
+  activeTab: 'input' | 'tree' | 'json' | 'preview' | 'extract' | 'clean' | 'convert';
+  /** The HTML string prepared for display in the sandboxed iframe preview. */
+  previewHtml: string;
+  /** Any error message encountered during HTML parsing or processing. */
+  parsingError: string | null;
+  /** The ID of the DOM node currently highlighted in the tree/json view. */
+  highlightedNodeId: string | null;
+  /** The character start and end offsets to highlight in the input editor, corresponding to the `highlightedNodeId`. */
+  highlightedOffset: { start: number; end: number } | null;
 
-  // Parsing & DOM Tree
-  parsedDom: DOMTreeNode[]; // Array of root DOMTreeNodes
-  domTreeError: string | null; // Any error during DOM parsing
-  domTreeExpandedNodes: Set<string>; // Set of node IDs currently expanded in the tree view
-  domTreeSelectedNodeId: string | null; // The ID of the currently selected node in the tree
+  /** Current options for HTML parsing. */
+  parsingOptions: ParsingOptions;
+  /** Current options for the HTML preview. */
+  previewOptions: PreviewOptions;
+  /** Current options for HTML conversion. */
+  conversionOptions: ConversionOptions;
 
-  // Extraction
-  extractionRules: ExtractionRule[];
-  extractedData: ExtractedElement[];
-  extractionError: string | null; // Any error during data extraction
-
-  // Cleaning
-  cleaningRules: CleaningRule[];
-  cleanedHtml: string; // The HTML string after applying cleaning rules
-  cleaningError: string | null; // Any error during HTML cleaning
-
-  // Conversion
-  conversionFormat: 'json' | 'markdown' | 'text' | 'html'; // Target format for conversion
-  convertedOutput: string; // The result of the conversion
-  conversionError: string | null; // Any error during conversion
-
-  // UI State
-  activeTab: 'input' | 'dom-tree' | 'extract' | 'clean' | 'convert' | 'settings';
-  isLoading: boolean; // General loading indicator for operations
-  errorMessage: string | null; // General error message for the tool
-
-  // Settings
-  prettyPrintOutput: boolean; // Whether to pretty-print HTML/JSON output
-  stripCommentsOnParse: boolean; // Whether to remove comments during initial parsing
-  domPurifyEnabled: boolean; // Whether to use DOMPurify on input HTML
+  // Actions (typically defined in the store, but listed here for context of state shape)
+  // setHtmlInput: (html: string) => void;
+  // parseHtml: (html: string) => void;
+  // setActiveTab: (tab: AppState['activeTab']) => void;
+  // setHighlightedNode: (nodeId: string | null, offset: { start: number; end: number } | null) => void;
+  // setParsingOptions: (options: Partial<ParsingOptions>) => void;
+  // setPreviewOptions: (options: Partial<PreviewOptions>) => void;
+  // setConversionOptions: (options: Partial<ConversionOptions>) => void;
 }
